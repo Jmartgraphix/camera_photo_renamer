@@ -10,7 +10,7 @@ A fast, cross-camera photo renamer powered by ExifTool. It safely renames RAW/JP
 - **XMP sidecars**: Writes original filename into `XMP:Title`
 - **Backups**: Optional full backup with directory structure preserved
 - **Recursive mode**: Optionally process subdirectories
-- **Logging**: Writes a detailed log to `rename_log.txt`
+- **Clean output**: All output goes to stdout/stderr - redirect to file if logging desired
 
 ## Requirements
 
@@ -55,6 +55,7 @@ For automation or batch processing, you can specify options directly:
 - `-c, --category CATEGORY` - Category prefix (Fam, Street, Art, etc.) [default: Fam]
 - `-r, --recursive` - Process subdirectories recursively [default: false]
 - `-n, --no-backup` - Skip backup creation [default: backup enabled]
+- `-x, --xmp-mode MODE` - XMP handling: backup, skip, overwrite [default: backup]
 - `-h, --help` - Show help message
 
 **Examples:**
@@ -67,6 +68,15 @@ For automation or batch processing, you can specify options directly:
 
 # Skip backup creation
 ./camera_photo_renamer.sh --event "Street" --category "Photo" --no-backup
+
+# Handle existing XMP files safely (backup existing ones)
+./camera_photo_renamer.sh -e "Portrait" --xmp-mode backup
+
+# Skip images that already have XMP files
+./camera_photo_renamer.sh -e "Landscape" --xmp-mode skip
+
+# Overwrite existing XMP files (original behavior)
+./camera_photo_renamer.sh -e "Event" --xmp-mode overwrite
 
 # Show help
 ./camera_photo_renamer.sh --help
@@ -85,6 +95,14 @@ Notes:
 - The `-1`, `-2`, ... suffix appears when multiple files share the same `DateTimeOriginal` (common in bursts).
 - An XMP sidecar is created per file (e.g., `photo.RAF.xmp`) with `XMP:Title = "Original: <old-filename>"`.
 
+### XMP Sidecar Handling
+
+The script provides three modes for handling existing XMP sidecar files:
+
+- **`backup`** (default): Moves existing XMP files to the backup directory before creating new ones. This preserves any existing metadata while ensuring the new filename information is added.
+- **`skip`**: Skips creating XMP files for images that already have them. Useful when you want to preserve existing XMP metadata completely.
+- **`overwrite`**: Deletes existing XMP files and creates new ones (original behavior). Use with caution as this will permanently remove existing metadata.
+
 ## Supported Formats
 
 - RAW: `RAF CR2 NEF ARW ORF RW2 PEF DNG`
@@ -98,7 +116,14 @@ Notes:
 ## Safety and Logging
 
 - Backups are optional but recommended. When enabled, the script copies supported files to a folder like `backup_YYYYMMDD_HHMMSS/`, preserving subdirectory structure.
-- The script writes progress and warnings to `rename_log.txt`.
+- All output goes to stdout/stderr. To log to a file, redirect the output:
+  ```bash
+  # Log everything to a file
+  ./camera_photo_renamer.sh -e "Vacation2024" > rename.log 2>&1
+  
+  # Log only errors to a file
+  ./camera_photo_renamer.sh -e "Vacation2024" 2> errors.log
+  ```
 
 ## Recommended Workflow
 

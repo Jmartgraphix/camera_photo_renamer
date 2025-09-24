@@ -4,7 +4,8 @@
 # Handles RAF/JPG pairs (Fujifilm SOOC), standalone RAW files, and JPG files.
 # Creates XMP sidecars with the original filename stored in XMP:Title.
 # Uses DateTimeOriginal with a counter (-c) to disambiguate burst shots.
-# Run in the target directory. Requires ExifTool in PATH. Logs to rename_log.txt.
+# Run in the target directory. Requires ExifTool in PATH.
+# Output goes to stdout/stderr - redirect to file if logging desired.
 #
 # Usage:
 #   Interactive mode: ./camera_photo_renamer.sh
@@ -15,6 +16,7 @@
 #   -c, --category CATEGORY  Category prefix (Fam, Street, Art, etc.) [default: Fam]
 #   -r, --recursive          Process subdirectories recursively [default: false]
 #   -n, --no-backup          Skip backup creation [default: backup enabled]
+#   -x, --xmp-mode MODE      XMP handling: backup, skip, overwrite [default: backup]
 #   -h, --help               Show this help message
 
 # Help function
@@ -29,12 +31,20 @@ show_help() {
     echo "  -c, --category CATEGORY  Category prefix (Fam, Street, Art, etc.) [default: Fam]"
     echo "  -r, --recursive          Process subdirectories recursively [default: false]"
     echo "  -n, --no-backup          Skip backup creation [default: backup enabled]"
+    echo "  -x, --xmp-mode MODE      XMP handling: backup, skip, overwrite [default: backup]"
     echo "  -h, --help               Show this help message"
     echo
     echo "Examples:"
     echo "  $0 -e \"Vacation2024\" -c \"Fam\" -r"
     echo "  $0 --event \"Wedding\" --category \"Art\" --no-backup"
-    echo "  $0 -e \"Street\""
+    echo "  $0 -e \"Street\" --xmp-mode skip"
+    echo "  $0 -e \"Portrait\" --xmp-mode overwrite"
+    echo
+    echo "Logging:"
+    echo "  # Log everything to file"
+    echo "  $0 -e \"Vacation2024\" > rename.log 2>&1"
+    echo "  # Log only errors"
+    echo "  $0 -e \"Vacation2024\" 2> errors.log"
     exit 0
 }
 
@@ -50,6 +60,7 @@ EVENT=""
 CATEGORY=""
 RECURSIVE=""
 NO_BACKUP=""
+XMP_MODE="backup"
 INTERACTIVE_MODE=true
 
 # Parse command line arguments
@@ -74,6 +85,11 @@ while [[ $# -gt 0 ]]; do
             NO_BACKUP="y"
             INTERACTIVE_MODE=false
             shift
+            ;;
+        -x|--xmp-mode)
+            XMP_MODE="$2"
+            INTERACTIVE_MODE=false
+            shift 2
             ;;
         -h|--help)
             show_help
@@ -101,6 +117,14 @@ if [[ "$INTERACTIVE_MODE" == "false" ]]; then
         exit 1
     fi
     
+    # Validate XMP mode
+    if [[ "$XMP_MODE" != "backup" && "$XMP_MODE" != "skip" && "$XMP_MODE" != "overwrite" ]]; then
+        echo "Error: Invalid XMP mode '$XMP_MODE'"
+        echo "Valid modes: backup, skip, overwrite"
+        echo "Use -h or --help for usage information"
+        exit 1
+    fi
+    
     # Set defaults for command line mode
     if [[ -z "$CATEGORY" ]]; then
         CATEGORY="Fam"
@@ -115,9 +139,7 @@ echo "            Date: 2025-09-24"
 echo "========================================"
 echo
 
-# Initialize log file.
-logfile="rename_log.txt"
-echo "Starting universal rename process at $(date)" > "$logfile"
+echo "Starting universal rename process at $(date)"
 
 # Supported file extensions.
 SUPPORTED_RAW="RAF CR2 NEF ARW ORF RW2 PEF DNG"
@@ -144,12 +166,27 @@ file_count=$((raw_count + jpg_count))
 if [ "$file_count" -eq 0 ]; then
     echo "Error: No supported photo files found in current directory"
     echo "Supported formats: $SUPPORTED_RAW $SUPPORTED_JPG"
-    echo "Error: No supported photo files found in current directory" >> "$logfile"
+    echo "Error: No supported photo files found in current directory" >&2
     exit 1
 fi
 
 echo "Found $file_count photo files to process ($raw_count RAW, $jpg_count JPG)"
-echo "File count: $file_count ($raw_count RAW, $jpg_count JPG)" >> "$logfile"
+echo "File count: $file_count ($raw_count RAW, $jpg_count JPG)"
+
+# Check for existing XMP files
+existing_xmp_count=0
+if [[ "$recursive" =~ ^([Yy]|[Yy][Ee][Ss])$ ]]; then
+    existing_xmp_count=$(find . -type f -iname "*.xmp" -not -path "./backup_*" | wc -l)
+else
+    existing_xmp_count=$(find . -maxdepth 1 -type f -iname "*.xmp" -not -path "./backup_*" | wc -l)
+fi
+
+if [ "$existing_xmp_count" -gt 0 ]; then
+    echo "Found $existing_xmp_count existing XMP sidecar files"
+    has_existing_xmp=true
+else
+    has_existing_xmp=false
+fi
 
 # Handle recursive processing
 if [[ "$INTERACTIVE_MODE" == "true" ]]; then
@@ -163,7 +200,7 @@ fi
 
 if [[ "$recursive" =~ ^([Yy]|[Yy][Ee][Ss])$ ]]; then
     recursive_flag="-r"
-    echo "Recursive processing: ENABLED" | tee -a "$logfile"
+    echo "Recursive processing: ENABLED"
     # Recount files including subdirectories for accurate count.
     file_count=0
     raw_count=0
@@ -181,10 +218,9 @@ if [[ "$recursive" =~ ^([Yy]|[Yy][Ee][Ss])$ ]]; then
     
     file_count=$((raw_count + jpg_count))
     echo "Total files including subdirectories: $file_count ($raw_count RAW, $jpg_count JPG)"
-    echo "Total files including subdirectories: $file_count ($raw_count RAW, $jpg_count JPG)" >> "$logfile"
 else
     recursive_flag=""
-    echo "Recursive processing: DISABLED" | tee -a "$logfile"
+    echo "Recursive processing: DISABLED"
 fi
 
 # Detect camera types.
@@ -217,27 +253,21 @@ fi
 # Report detected camera types.
 if [ "$fujifilm_count" -gt 0 ]; then
     echo "- Fujifilm camera detected ($fujifilm_count RAF files)"
-    echo "- Fujifilm camera detected ($fujifilm_count RAF files)" >> "$logfile"
 fi
 if [ "$sony_count" -gt 0 ]; then
     echo "- Sony camera detected ($sony_count ARW files)"
-    echo "- Sony camera detected ($sony_count ARW files)" >> "$logfile"
 fi
 if [ "$nikon_count" -gt 0 ]; then
     echo "- Nikon camera detected ($nikon_count NEF files)"
-    echo "- Nikon camera detected ($nikon_count NEF files)" >> "$logfile"
 fi
 if [ "$canon_count" -gt 0 ]; then
     echo "- Canon camera detected ($canon_count CR2 files)"
-    echo "- Canon camera detected ($canon_count CR2 files)" >> "$logfile"
 fi
 if [ "$olympus_count" -gt 0 ]; then
     echo "- Olympus camera detected ($olympus_count ORF files)"
-    echo "- Olympus camera detected ($olympus_count ORF files)" >> "$logfile"
 fi
 if [ "$other_formats" -gt 0 ]; then
     echo "- Other camera format detected ($other_formats files)"
-    echo "- Other camera format detected ($other_formats files)" >> "$logfile"
 fi
 
 # Handle backup option
@@ -270,14 +300,14 @@ if [[ "$backup" =~ ^([Yy]|[Yy][Ee][Ss])$ ]]; then
                 cp "$file" "$backup_dir/"
             fi
         done
-        echo "Backup created in: $backup_dir (including subdirectories with preserved structure)" | tee -a "$logfile"
+        echo "Backup created in: $backup_dir (including subdirectories with preserved structure)"
     else
         # Backup current directory only.
         find . -maxdepth 1 -type f \( -iname "*.RAF" -o -iname "*.CR2" -o -iname "*.NEF" -o -iname "*.ARW" -o -iname "*.ORF" -o -iname "*.RW2" -o -iname "*.PEF" -o -iname "*.DNG" -o -iname "*.JPG" -o -iname "*.JPEG" -o -iname "*.HEIC" -o -iname "*.HEIF" -o -iname "*.PNG" -o -iname "*.TIFF" -o -iname "*.TIF" \) -exec cp {} "$backup_dir/" \;
-        echo "Backup created in: $backup_dir (current directory only)" | tee -a "$logfile"
+        echo "Backup created in: $backup_dir (current directory only)"
     fi
 else
-    echo "Backup skipped" >> "$logfile"
+    echo "Backup skipped"
 fi
 
 # Handle category prefix
@@ -299,21 +329,49 @@ else
         category=""
     fi
 fi
-echo "Category: ${category:-"(none)"}" >> "$logfile"
+echo "Category: ${category:-"(none)"}"
 
 # Handle event descriptor
 if [[ "$INTERACTIVE_MODE" == "true" ]]; then
     # Prompt for event descriptor (1–3 words, no spaces, max 12 chars).
     read -p "Enter event descriptor (1-3 words, no spaces, max 12 chars): " event
     if [[ ${#event} -gt 12 ]]; then
-        echo "Error: Event descriptor too long (>12 chars). Exiting." | tee -a "$logfile"
+        echo "Error: Event descriptor too long (>12 chars). Exiting."
         exit 1
     fi
 else
     # Use command line argument
     event="$EVENT"
 fi
-echo "Event: $event" >> "$logfile"
+echo "Event: $event"
+
+# Handle XMP mode
+if [[ "$INTERACTIVE_MODE" == "true" ]]; then
+    if [[ "$has_existing_xmp" == "true" ]]; then
+        echo
+        echo "XMP sidecar handling options:"
+        echo "  backup   - Move existing XMP files to backup directory (safest)"
+        echo "  skip     - Skip images that already have XMP files"
+        echo "  overwrite - Delete existing XMP files and create new ones"
+        read -p "How to handle existing XMP files? [backup/skip/overwrite, default backup]: " xmp_mode_input
+        xmp_mode=${xmp_mode_input:-backup}
+    else
+        # No existing XMP files, use default mode
+        xmp_mode="backup"
+        echo "No existing XMP files found - will create new XMP sidecar files"
+    fi
+else
+    # Use command line argument
+    xmp_mode="$XMP_MODE"
+fi
+
+# Validate XMP mode (for interactive mode)
+if [[ "$xmp_mode" != "backup" && "$xmp_mode" != "skip" && "$xmp_mode" != "overwrite" ]]; then
+    echo "Error: Invalid XMP mode '$xmp_mode'. Using default 'backup'"
+    xmp_mode="backup"
+fi
+
+echo "XMP handling mode: $xmp_mode"
 
 # Estimate burst shots via duplicate DateTimeOriginal timestamps.
 if [[ "$recursive" =~ ^([Yy]|[Yy][Ee][Ss])$ ]]; then
@@ -321,21 +379,52 @@ if [[ "$recursive" =~ ^([Yy]|[Yy][Ee][Ss])$ ]]; then
 else
     duplicate_count=$(exiftool -ext RAF -ext CR2 -ext NEF -ext ARW -ext ORF -ext RW2 -ext PEF -ext DNG -ext JPG -ext JPEG -ext HEIC -ext HEIF . -DateTimeOriginal -s3 | sort | uniq -c | awk '$1 > 1' | wc -l)
 fi
-echo "Duplicate timestamps found: $duplicate_count" >> "$logfile"
+echo "Duplicate timestamps found: $duplicate_count"
 
 # Note about timestamp-based naming and burst counter.
-echo "Note: Using DateTimeOriginal with counter for burst shots and unique identification." >> "$logfile"
+echo "Note: Using DateTimeOriginal with counter for burst shots and unique identification."
 
-# Remove existing XMP sidecars.
-echo "Removing existing XMP sidecar files..." >> "$logfile"
-if [[ "$recursive" =~ ^([Yy]|[Yy][Ee][Ss])$ ]]; then
-    find . -iname "*.xmp" -type f -not -path "./backup_*" -delete 2>>"$logfile"
-else 
-    find . -maxdepth 1 -iname "*.xmp" -type f -not -path "./backup_*" -delete 2>>"$logfile"
-fi
+# Handle existing XMP sidecars based on selected mode.
+case "$xmp_mode" in
+    "backup")
+        echo "Backing up existing XMP sidecar files..."
+        if [[ "$recursive" =~ ^([Yy]|[Yy][Ee][Ss])$ ]]; then
+            find . -iname "*.xmp" -type f -not -path "./backup_*" | while read -r xmp_file; do
+                if [ -f "$xmp_file" ]; then
+                    # Create backup directory if it doesn't exist
+                    if [ -d "$backup_dir" ]; then
+                        cp "$xmp_file" "$backup_dir/"
+                        rm "$xmp_file"
+                    fi
+                fi
+            done
+        else 
+            find . -maxdepth 1 -iname "*.xmp" -type f -not -path "./backup_*" | while read -r xmp_file; do
+                if [ -f "$xmp_file" ]; then
+                    # Create backup directory if it doesn't exist
+                    if [ -d "$backup_dir" ]; then
+                        cp "$xmp_file" "$backup_dir/"
+                        rm "$xmp_file"
+                    fi
+                fi
+            done
+        fi
+        ;;
+    "skip")
+        echo "Skipping images with existing XMP sidecar files..."
+        ;;
+    "overwrite")
+        echo "Removing existing XMP sidecar files..."
+        if [[ "$recursive" =~ ^([Yy]|[Yy][Ee][Ss])$ ]]; then
+            find . -iname "*.xmp" -type f -not -path "./backup_*" -delete 2>/dev/null
+        else 
+            find . -maxdepth 1 -iname "*.xmp" -type f -not -path "./backup_*" -delete 2>/dev/null
+        fi
+        ;;
+esac
 
 # Create a mapping file keyed by DateTimeOriginal for reliable matching.
-echo "Creating filename mapping using EXIF DateTimeOriginal..." >> "$logfile"
+echo "Creating filename mapping using EXIF DateTimeOriginal..."
 temp_mapping="/tmp/filename_mapping_$$"
 
 # Build mapping of DateTimeOriginal to original filenames before renaming.
@@ -363,7 +452,7 @@ temp_backup_dir=""
 if [[ "$backup" =~ ^([Yy]|[Yy][Ee][Ss])$ ]] && [ -d "$backup_dir" ]; then
     temp_backup_dir="/tmp/backup_move_$$"
     mv "$backup_dir" "$temp_backup_dir"
-    echo "Temporarily moved backup directory to prevent processing: $temp_backup_dir" >> "$logfile"
+    echo "Temporarily moved backup directory to prevent processing: $temp_backup_dir"
 fi
 
 # Build rename expression (with or without category).
@@ -374,21 +463,21 @@ else
 fi
 
 # Rename with DateTimeOriginal and a counter for duplicates.
-echo "Renaming files with DateTimeOriginal and counter for burst shots..." | tee -a "$logfile"
+echo "Renaming files with DateTimeOriginal and counter for burst shots..."
 if [[ "$recursive" =~ ^([Yy]|[Yy][Ee][Ss])$ ]]; then
-    exiftool -d %Y-%m-%d_%H%M%S "$rename_expr" -ext RAF -ext CR2 -ext NEF -ext ARW -ext ORF -ext RW2 -ext PEF -ext DNG -ext JPG -ext JPEG -ext HEIC -ext HEIF -ext PNG -ext TIFF -ext TIF -r . -q 2>>"$logfile"
+    exiftool -d %Y-%m-%d_%H%M%S "$rename_expr" -ext RAF -ext CR2 -ext NEF -ext ARW -ext ORF -ext RW2 -ext PEF -ext DNG -ext JPG -ext JPEG -ext HEIC -ext HEIF -ext PNG -ext TIFF -ext TIF -r . -q 2>/dev/null
 else
-    exiftool -d %Y-%m-%d_%H%M%S "$rename_expr" -ext RAF -ext CR2 -ext NEF -ext ARW -ext ORF -ext RW2 -ext PEF -ext DNG -ext JPG -ext JPEG -ext HEIC -ext HEIF -ext PNG -ext TIFF -ext TIF . -q 2>>"$logfile"
+    exiftool -d %Y-%m-%d_%H%M%S "$rename_expr" -ext RAF -ext CR2 -ext NEF -ext ARW -ext ORF -ext RW2 -ext PEF -ext DNG -ext JPG -ext JPEG -ext HEIC -ext HEIF -ext PNG -ext TIFF -ext TIF . -q 2>/dev/null
 fi
 
 # Restore backup directory to original location.
 if [ -n "$temp_backup_dir" ] && [ -d "$temp_backup_dir" ]; then
     mv "$temp_backup_dir" "$backup_dir"
-    echo "Restored backup directory to original location: $backup_dir" >> "$logfile"
+    echo "Restored backup directory to original location: $backup_dir"
 fi
 
 # Create XMP sidecars with original filename metadata.
-echo "Creating XMP sidecar files..." >> "$logfile"
+echo "Creating XMP sidecar files..."
 
 # Collect renamed files (excluding backup directories).
 if [[ "$recursive" =~ ^[Yy][Ee][Ss]$ ]]; then
@@ -401,7 +490,6 @@ total_files=$(echo "$renamed_files" | wc -l)
 current_file=0
 
 echo "Found $total_files renamed files to process..."
-echo "Creating XMP sidecar files..." | tee -a "$logfile"
 
 # Write sidecars embedding original filename in XMP:Title for each file.
 while IFS= read -r new_file; do
@@ -432,13 +520,15 @@ while IFS= read -r new_file; do
     # Final fallback: use current filename if no DateTimeOriginal match.
     if [ -z "$original_filename" ]; then
         original_filename="$current_filename"
-        echo "Warning: Could not match DateTimeOriginal for $new_file, using current filename" >> "$logfile"
+        echo "Warning: Could not match DateTimeOriginal for $new_file, using current filename" >&2
     fi
     
-    # Create XMP sidecar file containing original filename in XMP:Title.
-    exiftool -XMP:Title="Original: $original_filename" -o "$new_file.xmp" "$new_file" -q 2>>"$logfile"
-    if [ $? -ne 0 ]; then
-        echo "Warning: XMP sidecar creation failed for $new_file" >> "$logfile"
+    # Create XMP sidecar file containing original filename in XMP:Title (unless skipping).
+    if [[ "$xmp_mode" != "skip" || ! -f "$new_file.xmp" ]]; then
+        exiftool -XMP:Title="Original: $original_filename" -o "$new_file.xmp" "$new_file" -q 2>/dev/null
+        if [ $? -ne 0 ]; then
+            echo "Warning: XMP sidecar creation failed for $new_file" >&2
+        fi
     fi
 done <<< "$renamed_files"
 
@@ -448,23 +538,24 @@ rm -f "$temp_mapping"
 echo # New line after progress counter
 
 # Confirm sidecar creation for all supported formats.
-echo "XMP sidecar files created for all supported formats." >> "$logfile"
+echo "XMP sidecar files created for all supported formats."
 
 # Display summary.
 echo
 echo "========================================"
 echo "              PROCESSING SUMMARY"
 echo "========================================"
-echo "Files renamed: $total_files" | tee -a "$logfile"
-echo "XMP sidecar files created: $total_files" | tee -a "$logfile"
-echo "Category: $category" | tee -a "$logfile"
-echo "Event: $event" | tee -a "$logfile"
-echo "Recursive processing: $([[ "$recursive" =~ ^[Yy][Ee][Ss]$ ]] && echo "ENABLED" || echo "DISABLED")" | tee -a "$logfile"
+echo "Files renamed: $total_files"
+echo "XMP sidecar files created: $total_files"
+echo "Category: $category"
+echo "Event: $event"
+echo "XMP handling mode: $xmp_mode"
+echo "Recursive processing: $([[ "$recursive" =~ ^[Yy][Ee][Ss]$ ]] && echo "ENABLED" || echo "DISABLED")"
 if [[ "$backup" =~ ^([Yy]|[Yy][Ee][Ss])$ ]]; then
-    echo "Backup created: $backup_dir" | tee -a "$logfile"
+    echo "Backup created: $backup_dir"
 else
-    echo "Backup: Not created" | tee -a "$logfile"
+    echo "Backup: Not created"
 fi
 echo "========================================"
 echo
-echo "Camera rename process completed. Check $logfile for details." | tee -a "$logfile"
+echo "Camera rename process completed."
