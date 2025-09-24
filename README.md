@@ -1,10 +1,10 @@
 # Camera Photo Re-namer
 
-A fast, cross-camera photo renamer powered by ExifTool. It safely renames RAW/JPEG/HEIF/PNG/TIFF photos using EXIF DateTimeOriginal and appends a counter for burst shots. Optionally prefixes filenames with a category and event, and creates XMP sidecars embedding the original filename in `XMP:Title` for traceability.
+A fast, cross-camera photo renamer powered by ExifTool. It safely renames RAW/JPEG/HEIF/PNG/TIFF/WebP photos using EXIF DateTimeOriginal and appends a counter for burst shots. Optionally prefixes filenames with a category and event, and creates XMP sidecars embedding the original filename in `XMP:Title` for traceability.
 
 ## Features
 
-- **Multi-brand support**: RAF, CR2, NEF, ARW, ORF, RW2, PEF, DNG, JPG/JPEG, HEIC/HEIF, PNG, TIFF/TIF
+- **Multi-brand support**: RAF, CR2, NEF, ARW, ORF, RW2, PEF, DNG, JPG/JPEG, HEIC/HEIF, PNG, TIFF/TIF, WebP
 - **Smart renaming**: `YYYY-MM-DD_HHMMSS[_Category]-Event[-c].ext` using `DateTimeOriginal` with a counter for duplicates
 - **Pair-aware**: Keeps RAW/JPEG (e.g., Fujifilm SOOC) pairs aligned by timestamp and extension
 - **XMP sidecars**: Writes original filename into `XMP:Title`
@@ -106,7 +106,7 @@ The script provides three modes for handling existing XMP sidecar files:
 ## Supported Formats
 
 - RAW: `RAF CR2 NEF ARW ORF RW2 PEF DNG`
-- Images: `JPG JPEG HEIC HEIF PNG TIFF TIF`
+- Images: `JPG JPEG HEIC HEIF PNG TIFF TIF WebP`
 
 ## Windows Tips
 

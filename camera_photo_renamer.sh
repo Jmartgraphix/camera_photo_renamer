@@ -1,7 +1,8 @@
 #!/bin/bash
 
 # Camera Photo Re-namer — supports multiple camera brands and formats.
-# Handles RAF/JPG pairs (Fujifilm SOOC), standalone RAW files, and JPG files.
+# Handles RAF/JPG pairs (Fujifilm SOOC), standalone RAW files, and image files.
+# Supports RAW, JPG, HEIC, PNG, TIFF, and WebP formats.
 # Creates XMP sidecars with the original filename stored in XMP:Title.
 # Uses DateTimeOriginal with a counter (-c) to disambiguate burst shots.
 # Run in the target directory. Requires ExifTool in PATH.
@@ -143,7 +144,7 @@ echo "Starting universal rename process at $(date)"
 
 # Supported file extensions.
 SUPPORTED_RAW="RAF CR2 NEF ARW ORF RW2 PEF DNG"
-SUPPORTED_JPG="JPG JPEG HEIC HEIF PNG TIFF TIF"
+SUPPORTED_JPG="JPG JPEG HEIC HEIF PNG TIFF TIF WEBP"
 
 # Initialize counters.
 file_count=0
@@ -290,7 +291,7 @@ if [[ "$backup" =~ ^([Yy]|[Yy][Ee][Ss])$ ]]; then
     
     if [[ "$recursive" =~ ^([Yy]|[Yy][Ee][Ss])$ ]]; then
         # Backup all files, including subdirectories, preserving structure.
-        find . -type f \( -iname "*.RAF" -o -iname "*.CR2" -o -iname "*.NEF" -o -iname "*.ARW" -o -iname "*.ORF" -o -iname "*.RW2" -o -iname "*.PEF" -o -iname "*.DNG" -o -iname "*.JPG" -o -iname "*.JPEG" -o -iname "*.HEIC" -o -iname "*.HEIF" -o -iname "*.PNG" -o -iname "*.TIFF" -o -iname "*.TIF" \) -not -path "./backup_*" | while read -r file; do
+        find . -type f \( -iname "*.RAF" -o -iname "*.CR2" -o -iname "*.NEF" -o -iname "*.ARW" -o -iname "*.ORF" -o -iname "*.RW2" -o -iname "*.PEF" -o -iname "*.DNG" -o -iname "*.JPG" -o -iname "*.JPEG" -o -iname "*.HEIC" -o -iname "*.HEIF" -o -iname "*.PNG" -o -iname "*.TIFF" -o -iname "*.TIF" -o -iname "*.WEBP" \) -not -path "./backup_*" | while read -r file; do
             # Create directory structure in backup
             file_dir=$(dirname "$file")
             if [ "$file_dir" != "." ]; then
@@ -303,7 +304,7 @@ if [[ "$backup" =~ ^([Yy]|[Yy][Ee][Ss])$ ]]; then
         echo "Backup created in: $backup_dir (including subdirectories with preserved structure)"
     else
         # Backup current directory only.
-        find . -maxdepth 1 -type f \( -iname "*.RAF" -o -iname "*.CR2" -o -iname "*.NEF" -o -iname "*.ARW" -o -iname "*.ORF" -o -iname "*.RW2" -o -iname "*.PEF" -o -iname "*.DNG" -o -iname "*.JPG" -o -iname "*.JPEG" -o -iname "*.HEIC" -o -iname "*.HEIF" -o -iname "*.PNG" -o -iname "*.TIFF" -o -iname "*.TIF" \) -exec cp {} "$backup_dir/" \;
+        find . -maxdepth 1 -type f \( -iname "*.RAF" -o -iname "*.CR2" -o -iname "*.NEF" -o -iname "*.ARW" -o -iname "*.ORF" -o -iname "*.RW2" -o -iname "*.PEF" -o -iname "*.DNG" -o -iname "*.JPG" -o -iname "*.JPEG" -o -iname "*.HEIC" -o -iname "*.HEIF" -o -iname "*.PNG" -o -iname "*.TIFF" -o -iname "*.TIF" -o -iname "*.WEBP" \) -exec cp {} "$backup_dir/" \;
         echo "Backup created in: $backup_dir (current directory only)"
     fi
 else
@@ -375,9 +376,9 @@ echo "XMP handling mode: $xmp_mode"
 
 # Estimate burst shots via duplicate DateTimeOriginal timestamps.
 if [[ "$recursive" =~ ^([Yy]|[Yy][Ee][Ss])$ ]]; then
-    duplicate_count=$(exiftool -ext RAF -ext CR2 -ext NEF -ext ARW -ext ORF -ext RW2 -ext PEF -ext DNG -ext JPG -ext JPEG -ext HEIC -ext HEIF -r . -DateTimeOriginal -s3 | sort | uniq -c | awk '$1 > 1' | wc -l)
+    duplicate_count=$(exiftool -ext RAF -ext CR2 -ext NEF -ext ARW -ext ORF -ext RW2 -ext PEF -ext DNG -ext JPG -ext JPEG -ext HEIC -ext HEIF -ext WEBP -r . -DateTimeOriginal -s3 | sort | uniq -c | awk '$1 > 1' | wc -l)
 else
-    duplicate_count=$(exiftool -ext RAF -ext CR2 -ext NEF -ext ARW -ext ORF -ext RW2 -ext PEF -ext DNG -ext JPG -ext JPEG -ext HEIC -ext HEIF . -DateTimeOriginal -s3 | sort | uniq -c | awk '$1 > 1' | wc -l)
+    duplicate_count=$(exiftool -ext RAF -ext CR2 -ext NEF -ext ARW -ext ORF -ext RW2 -ext PEF -ext DNG -ext JPG -ext JPEG -ext HEIC -ext HEIF -ext WEBP . -DateTimeOriginal -s3 | sort | uniq -c | awk '$1 > 1' | wc -l)
 fi
 echo "Duplicate timestamps found: $duplicate_count"
 
@@ -430,7 +431,7 @@ temp_mapping="/tmp/filename_mapping_$$"
 # Build mapping of DateTimeOriginal to original filenames before renaming.
 # Exclude backup directories from processing.
 if [[ "$recursive" =~ ^[Yy][Ee][Ss]$ ]]; then
-    find . -type f \( -iname "*.RAF" -o -iname "*.CR2" -o -iname "*.NEF" -o -iname "*.ARW" -o -iname "*.ORF" -o -iname "*.RW2" -o -iname "*.PEF" -o -iname "*.DNG" -o -iname "*.JPG" -o -iname "*.JPEG" -o -iname "*.HEIC" -o -iname "*.HEIF" -o -iname "*.PNG" -o -iname "*.TIFF" -o -iname "*.TIF" \) -not -path "./backup_*" | while read -r file; do
+    find . -type f \( -iname "*.RAF" -o -iname "*.CR2" -o -iname "*.NEF" -o -iname "*.ARW" -o -iname "*.ORF" -o -iname "*.RW2" -o -iname "*.PEF" -o -iname "*.DNG" -o -iname "*.JPG" -o -iname "*.JPEG" -o -iname "*.HEIC" -o -iname "*.HEIF" -o -iname "*.PNG" -o -iname "*.TIFF" -o -iname "*.TIF" -o -iname "*.WEBP" \) -not -path "./backup_*" | while read -r file; do
         datetime=$(exiftool -DateTimeOriginal -s3 "$file" 2>/dev/null)
         original_name=$(basename "$file")
         if [ -n "$datetime" ]; then
@@ -438,7 +439,7 @@ if [[ "$recursive" =~ ^[Yy][Ee][Ss]$ ]]; then
         fi
     done
 else
-    find . -maxdepth 1 -type f \( -iname "*.RAF" -o -iname "*.CR2" -o -iname "*.NEF" -o -iname "*.ARW" -o -iname "*.ORF" -o -iname "*.RW2" -o -iname "*.PEF" -o -iname "*.DNG" -o -iname "*.JPG" -o -iname "*.JPEG" -o -iname "*.HEIC" -o -iname "*.HEIF" -o -iname "*.PNG" -o -iname "*.TIFF" -o -iname "*.TIF" \) -not -path "./backup_*" | while read -r file; do
+    find . -maxdepth 1 -type f \( -iname "*.RAF" -o -iname "*.CR2" -o -iname "*.NEF" -o -iname "*.ARW" -o -iname "*.ORF" -o -iname "*.RW2" -o -iname "*.PEF" -o -iname "*.DNG" -o -iname "*.JPG" -o -iname "*.JPEG" -o -iname "*.HEIC" -o -iname "*.HEIF" -o -iname "*.PNG" -o -iname "*.TIFF" -o -iname "*.TIF" -o -iname "*.WEBP" \) -not -path "./backup_*" | while read -r file; do
         datetime=$(exiftool -DateTimeOriginal -s3 "$file" 2>/dev/null)
         original_name=$(basename "$file")
         if [ -n "$datetime" ]; then
@@ -465,9 +466,9 @@ fi
 # Rename with DateTimeOriginal and a counter for duplicates.
 echo "Renaming files with DateTimeOriginal and counter for burst shots..."
 if [[ "$recursive" =~ ^([Yy]|[Yy][Ee][Ss])$ ]]; then
-    exiftool -d %Y-%m-%d_%H%M%S "$rename_expr" -ext RAF -ext CR2 -ext NEF -ext ARW -ext ORF -ext RW2 -ext PEF -ext DNG -ext JPG -ext JPEG -ext HEIC -ext HEIF -ext PNG -ext TIFF -ext TIF -r . -q 2>/dev/null
+    exiftool -d %Y-%m-%d_%H%M%S "$rename_expr" -ext RAF -ext CR2 -ext NEF -ext ARW -ext ORF -ext RW2 -ext PEF -ext DNG -ext JPG -ext JPEG -ext HEIC -ext HEIF -ext PNG -ext TIFF -ext TIF -ext WEBP -r . -q 2>/dev/null
 else
-    exiftool -d %Y-%m-%d_%H%M%S "$rename_expr" -ext RAF -ext CR2 -ext NEF -ext ARW -ext ORF -ext RW2 -ext PEF -ext DNG -ext JPG -ext JPEG -ext HEIC -ext HEIF -ext PNG -ext TIFF -ext TIF . -q 2>/dev/null
+    exiftool -d %Y-%m-%d_%H%M%S "$rename_expr" -ext RAF -ext CR2 -ext NEF -ext ARW -ext ORF -ext RW2 -ext PEF -ext DNG -ext JPG -ext JPEG -ext HEIC -ext HEIF -ext PNG -ext TIFF -ext TIF -ext WEBP . -q 2>/dev/null
 fi
 
 # Restore backup directory to original location.
@@ -481,9 +482,9 @@ echo "Creating XMP sidecar files..."
 
 # Collect renamed files (excluding backup directories).
 if [[ "$recursive" =~ ^[Yy][Ee][Ss]$ ]]; then
-    renamed_files=$(find . -type f \( -iname "*.RAF" -o -iname "*.CR2" -o -iname "*.NEF" -o -iname "*.ARW" -o -iname "*.ORF" -o -iname "*.RW2" -o -iname "*.PEF" -o -iname "*.DNG" -o -iname "*.JPG" -o -iname "*.JPEG" -o -iname "*.HEIC" -o -iname "*.HEIF" -o -iname "*.PNG" -o -iname "*.TIFF" -o -iname "*.TIF" \) -not -path "./backup_*" | sort)
+    renamed_files=$(find . -type f \( -iname "*.RAF" -o -iname "*.CR2" -o -iname "*.NEF" -o -iname "*.ARW" -o -iname "*.ORF" -o -iname "*.RW2" -o -iname "*.PEF" -o -iname "*.DNG" -o -iname "*.JPG" -o -iname "*.JPEG" -o -iname "*.HEIC" -o -iname "*.HEIF" -o -iname "*.PNG" -o -iname "*.TIFF" -o -iname "*.TIF" -o -iname "*.WEBP" \) -not -path "./backup_*" | sort)
 else
-    renamed_files=$(find . -maxdepth 1 -type f \( -iname "*.RAF" -o -iname "*.CR2" -o -iname "*.NEF" -o -iname "*.ARW" -o -iname "*.ORF" -o -iname "*.RW2" -o -iname "*.PEF" -o -iname "*.DNG" -o -iname "*.JPG" -o -iname "*.JPEG" -o -iname "*.HEIC" -o -iname "*.HEIF" -o -iname "*.PNG" -o -iname "*.TIFF" -o -iname "*.TIF" \) -not -path "./backup_*" | sort)
+    renamed_files=$(find . -maxdepth 1 -type f \( -iname "*.RAF" -o -iname "*.CR2" -o -iname "*.NEF" -o -iname "*.ARW" -o -iname "*.ORF" -o -iname "*.RW2" -o -iname "*.PEF" -o -iname "*.DNG" -o -iname "*.JPG" -o -iname "*.JPEG" -o -iname "*.HEIC" -o -iname "*.HEIF" -o -iname "*.PNG" -o -iname "*.TIFF" -o -iname "*.TIF" -o -iname "*.WEBP" \) -not -path "./backup_*" | sort)
 fi
 
 total_files=$(echo "$renamed_files" | wc -l)
