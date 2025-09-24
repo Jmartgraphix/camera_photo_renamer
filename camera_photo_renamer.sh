@@ -144,7 +144,7 @@ echo "Starting universal rename process at $(date)"
 
 # Supported file extensions.
 SUPPORTED_RAW="RAF CR2 NEF ARW ORF RW2 PEF DNG"
-SUPPORTED_JPG="JPG JPEG HEIC HEIF PNG TIFF TIF WEBP"
+SUPPORTED_IMG="JPG JPEG HEIC HEIF PNG TIFF TIF WEBP"
 
 # Initialize counters.
 file_count=0
@@ -157,7 +157,7 @@ for ext in $SUPPORTED_RAW; do
     raw_count=$((raw_count + count))
 done
 
-for ext in $SUPPORTED_JPG; do
+for ext in $SUPPORTED_IMG; do
     count=$(find . -maxdepth 1 -type f -iname "*.$ext" -o -iname "*.$ext" | wc -l)
     jpg_count=$((jpg_count + count))
 done
@@ -166,7 +166,7 @@ file_count=$((raw_count + jpg_count))
 
 if [ "$file_count" -eq 0 ]; then
     echo "Error: No supported photo files found in current directory"
-    echo "Supported formats: $SUPPORTED_RAW $SUPPORTED_JPG"
+    echo "Supported formats: $SUPPORTED_RAW $SUPPORTED_IMG"
     echo "Error: No supported photo files found in current directory" >&2
     exit 1
 fi
@@ -212,7 +212,7 @@ if [[ "$recursive" =~ ^([Yy]|[Yy][Ee][Ss])$ ]]; then
         raw_count=$((raw_count + count))
     done
     
-    for ext in $SUPPORTED_JPG; do
+    for ext in $SUPPORTED_IMG; do
         count=$(find . -type f -iname "*.$ext" | wc -l)
         jpg_count=$((jpg_count + count))
     done
