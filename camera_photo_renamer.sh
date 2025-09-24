@@ -5,12 +5,106 @@
 # Creates XMP sidecars with the original filename stored in XMP:Title.
 # Uses DateTimeOriginal with a counter (-c) to disambiguate burst shots.
 # Run in the target directory. Requires ExifTool in PATH. Logs to rename_log.txt.
+#
+# Usage:
+#   Interactive mode: ./camera_photo_renamer.sh
+#   Command line mode: ./camera_photo_renamer.sh [OPTIONS]
+#
+# Options:
+#   -e, --event EVENT        Event descriptor (1-3 words, no spaces, max 12 chars) [required]
+#   -c, --category CATEGORY  Category prefix (Fam, Street, Art, etc.) [default: Fam]
+#   -r, --recursive          Process subdirectories recursively [default: false]
+#   -n, --no-backup          Skip backup creation [default: backup enabled]
+#   -h, --help               Show this help message
+
+# Help function
+show_help() {
+    echo "Camera Photo Re-namer v1.0"
+    echo "Usage:"
+    echo "  Interactive mode: $0"
+    echo "  Command line mode: $0 [OPTIONS]"
+    echo
+    echo "Options:"
+    echo "  -e, --event EVENT        Event descriptor (1-3 words, no spaces, max 12 chars) [required]"
+    echo "  -c, --category CATEGORY  Category prefix (Fam, Street, Art, etc.) [default: Fam]"
+    echo "  -r, --recursive          Process subdirectories recursively [default: false]"
+    echo "  -n, --no-backup          Skip backup creation [default: backup enabled]"
+    echo "  -h, --help               Show this help message"
+    echo
+    echo "Examples:"
+    echo "  $0 -e \"Vacation2024\" -c \"Fam\" -r"
+    echo "  $0 --event \"Wedding\" --category \"Art\" --no-backup"
+    echo "  $0 -e \"Street\""
+    exit 0
+}
 
 # Check ExifTool availability.
 if ! command -v exiftool &> /dev/null; then
     echo "Error: ExifTool is not installed or not in PATH"
     echo "Please install ExifTool: https://exiftool.org/"
     exit 1
+fi
+
+# Initialize command line variables
+EVENT=""
+CATEGORY=""
+RECURSIVE=""
+NO_BACKUP=""
+INTERACTIVE_MODE=true
+
+# Parse command line arguments
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        -e|--event)
+            EVENT="$2"
+            INTERACTIVE_MODE=false
+            shift 2
+            ;;
+        -c|--category)
+            CATEGORY="$2"
+            INTERACTIVE_MODE=false
+            shift 2
+            ;;
+        -r|--recursive)
+            RECURSIVE="y"
+            INTERACTIVE_MODE=false
+            shift
+            ;;
+        -n|--no-backup)
+            NO_BACKUP="y"
+            INTERACTIVE_MODE=false
+            shift
+            ;;
+        -h|--help)
+            show_help
+            ;;
+        *)
+            echo "Error: Unknown option $1"
+            echo "Use -h or --help for usage information"
+            exit 1
+            ;;
+    esac
+done
+
+# Validate command line arguments
+if [[ "$INTERACTIVE_MODE" == "false" ]]; then
+    if [[ -z "$EVENT" ]]; then
+        echo "Error: Event descriptor is required in command line mode"
+        echo "Use -e or --event to specify the event descriptor"
+        echo "Use -h or --help for usage information"
+        exit 1
+    fi
+    
+    if [[ ${#EVENT} -gt 12 ]]; then
+        echo "Error: Event descriptor too long (>12 chars)"
+        echo "Use -h or --help for usage information"
+        exit 1
+    fi
+    
+    # Set defaults for command line mode
+    if [[ -z "$CATEGORY" ]]; then
+        CATEGORY="Fam"
+    fi
 fi
 
 # Print header.
@@ -57,9 +151,16 @@ fi
 echo "Found $file_count photo files to process ($raw_count RAW, $jpg_count JPG)"
 echo "File count: $file_count ($raw_count RAW, $jpg_count JPG)" >> "$logfile"
 
-# Ask about recursive processing (default: No).
-read -p "Process subdirectories recursively? [y/N] " recursive
-recursive=${recursive:-n}
+# Handle recursive processing
+if [[ "$INTERACTIVE_MODE" == "true" ]]; then
+    # Ask about recursive processing (default: No).
+    read -p "Process subdirectories recursively? [y/N] " recursive
+    recursive=${recursive:-n}
+else
+    # Use command line argument
+    recursive="$RECURSIVE"
+fi
+
 if [[ "$recursive" =~ ^([Yy]|[Yy][Ee][Ss])$ ]]; then
     recursive_flag="-r"
     echo "Recursive processing: ENABLED" | tee -a "$logfile"
@@ -139,9 +240,20 @@ if [ "$other_formats" -gt 0 ]; then
     echo "- Other camera format detected ($other_formats files)" >> "$logfile"
 fi
 
-# Optional backup (after recursive decision).
-read -p "Create backup before processing? [Y/n] " backup
-backup=${backup:-y}
+# Handle backup option
+if [[ "$INTERACTIVE_MODE" == "true" ]]; then
+    # Ask about backup (default: Yes).
+    read -p "Create backup before processing? [Y/n] " backup
+    backup=${backup:-y}
+else
+    # Use command line argument
+    if [[ "$NO_BACKUP" =~ ^([Yy]|[Yy][Ee][Ss])$ ]]; then
+        backup="n"
+    else
+        backup="y"
+    fi
+fi
+
 if [[ "$backup" =~ ^([Yy]|[Yy][Ee][Ss])$ ]]; then
     backup_dir="backup_$(date +%Y%m%d_%H%M%S)"
     mkdir "$backup_dir"
@@ -168,22 +280,38 @@ else
     echo "Backup skipped" >> "$logfile"
 fi
 
-# Optional category prefix (default: use it).
-read -p "Use category? [Y/n] " use_category
-use_category=${use_category:-y}
-if [[ "$use_category" =~ ^([Yy]|[Yy][Ee][Ss])$ ]]; then
-    read -p "Enter category (Fam, Street, Art, etc., default Fam): " category
-    category=${category:-Fam}
+# Handle category prefix
+if [[ "$INTERACTIVE_MODE" == "true" ]]; then
+    # Ask about category (default: use it).
+    read -p "Use category? [Y/n] " use_category
+    use_category=${use_category:-y}
+    if [[ "$use_category" =~ ^([Yy]|[Yy][Ee][Ss])$ ]]; then
+        read -p "Enter category (Fam, Street, Art, etc., default Fam): " category
+        category=${category:-Fam}
+    else
+        category=""
+    fi
 else
-    category=""
+    # Use command line argument
+    if [[ -n "$CATEGORY" ]]; then
+        category="$CATEGORY"
+    else
+        category=""
+    fi
 fi
 echo "Category: ${category:-"(none)"}" >> "$logfile"
 
-# Prompt for event descriptor (1–3 words, no spaces, max 12 chars).
-read -p "Enter event descriptor (1-3 words, no spaces, max 12 chars): " event
-if [[ ${#event} -gt 12 ]]; then
-    echo "Error: Event descriptor too long (>12 chars). Exiting." | tee -a "$logfile"
-    exit 1
+# Handle event descriptor
+if [[ "$INTERACTIVE_MODE" == "true" ]]; then
+    # Prompt for event descriptor (1–3 words, no spaces, max 12 chars).
+    read -p "Enter event descriptor (1-3 words, no spaces, max 12 chars): " event
+    if [[ ${#event} -gt 12 ]]; then
+        echo "Error: Event descriptor too long (>12 chars). Exiting." | tee -a "$logfile"
+        exit 1
+    fi
+else
+    # Use command line argument
+    event="$EVENT"
 fi
 echo "Event: $event" >> "$logfile"
 

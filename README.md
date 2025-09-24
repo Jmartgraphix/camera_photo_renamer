@@ -27,6 +27,8 @@ chmod +x camera_photo_renamer.sh
 
 ## Usage
 
+### Interactive Mode
+
 Run the script in the directory containing your photos (or at a parent directory if using recursive mode).
 
 ```bash
@@ -39,6 +41,36 @@ You will be prompted for:
 - **Backup creation**: Create a timestamped backup folder (default: Yes)
 - **Category**: Optional prefix like `Fam`, `Street`, `Art` (default: `Fam` if enabled)
 - **Event**: Short descriptor (1–3 words, no spaces, max 12 chars)
+
+### Command Line Mode
+
+For automation or batch processing, you can specify options directly:
+
+```bash
+./camera_photo_renamer.sh [OPTIONS]
+```
+
+**Options:**
+- `-e, --event EVENT` - Event descriptor (1-3 words, no spaces, max 12 chars) [required]
+- `-c, --category CATEGORY` - Category prefix (Fam, Street, Art, etc.) [default: Fam]
+- `-r, --recursive` - Process subdirectories recursively [default: false]
+- `-n, --no-backup` - Skip backup creation [default: backup enabled]
+- `-h, --help` - Show help message
+
+**Examples:**
+```bash
+# Basic usage with event only
+./camera_photo_renamer.sh -e "Vacation2024"
+
+# Full options with category, recursive processing
+./camera_photo_renamer.sh -e "Wedding" -c "Art" -r
+
+# Skip backup creation
+./camera_photo_renamer.sh --event "Street" --category "Photo" --no-backup
+
+# Show help
+./camera_photo_renamer.sh --help
+```
 
 Resulting filenames look like:
 
