@@ -86,4 +86,4 @@ Issues and pull requests are welcome. Please keep changes focused and include a 
 
 ## License
 
-MIT — see `LICENSE` for details.
+MIT — see [LICENSE](https://github.com/Jmartgraphix/camera_photo_renamer/blob/main/LICENSE) for details.
