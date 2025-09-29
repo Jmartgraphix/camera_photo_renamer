@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # Camera Photo Re-namer — supports multiple camera brands and formats.
 # Handles RAF/JPG pairs (Fujifilm SOOC), standalone RAW files, and image files.
