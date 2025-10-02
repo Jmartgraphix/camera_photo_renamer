@@ -18,6 +18,7 @@
 #   -r, --recursive          Process subdirectories recursively [default: false]
 #   -n, --no-backup          Skip backup creation [default: backup enabled]
 #   -x, --xmp-mode MODE      XMP handling: backup, skip, overwrite [default: backup]
+#   -s, --no-sidecar         Do not create XMP sidecar files (CLI mode)
 #   -h, --help               Show this help message
 
 # Help function
@@ -33,7 +34,11 @@ show_help() {
     echo "  -r, --recursive          Process subdirectories recursively [default: false]"
     echo "  -n, --no-backup          Skip backup creation [default: backup enabled]"
     echo "  -x, --xmp-mode MODE      XMP handling: backup, skip, overwrite [default: backup]"
+    echo "  -s, --no-sidecar         Do not create XMP sidecar files (CLI mode)"
     echo "  -h, --help               Show this help message"
+    echo
+    echo "Notes:"
+    echo "  - If --no-sidecar is specified, no XMP files are created and --xmp-mode is ignored."
     echo
     echo "Examples:"
     echo "  $0 -e \"Vacation2024\" -c \"Fam\" -r"
@@ -63,6 +68,7 @@ RECURSIVE=""
 NO_BACKUP=""
 XMP_MODE="backup"
 INTERACTIVE_MODE=true
+CREATE_XMP="y"
 
 # Parse command line arguments
 while [[ $# -gt 0 ]]; do
@@ -91,6 +97,11 @@ while [[ $# -gt 0 ]]; do
             XMP_MODE="$2"
             INTERACTIVE_MODE=false
             shift 2
+            ;;
+        -s|--no-sidecar)
+            CREATE_XMP="n"
+            INTERACTIVE_MODE=false
+            shift
             ;;
         -h|--help)
             show_help
@@ -404,6 +415,12 @@ fi
 
 echo "XMP handling mode: $xmp_mode"
 
+# Final confirmation in interactive mode: whether to create XMP sidecar files
+if [[ "$INTERACTIVE_MODE" == "true" ]]; then
+    read -p "Create XMP sidecar files? [Y/n] " create_xmp_input
+    CREATE_XMP=${create_xmp_input:-y}
+fi
+
 # Estimate burst shots via duplicate DateTimeOriginal timestamps.
 if [[ "$recursive" =~ ^([Yy]|[Yy][Ee][Ss])$ ]]; then
     duplicate_count=$(exiftool -ext RAF -ext CR2 -ext NEF -ext ARW -ext ORF -ext RW2 -ext PEF -ext DNG -ext JPG -ext JPEG -ext HEIC -ext HEIF -ext WEBP -r . -DateTimeOriginal -s3 | sort | uniq -c | awk '$1 > 1' | wc -l)
@@ -508,6 +525,8 @@ if [ -n "$temp_backup_dir" ] && [ -d "$temp_backup_dir" ]; then
 fi
 
 # Create XMP sidecars with original filename metadata.
+# Create XMP sidecars with original filename metadata (if enabled).
+if [[ "$CREATE_XMP" =~ ^([Yy]|[Yy][Ee][Ss])$ ]]; then
 echo "Creating XMP sidecar files..."
 
 # Collect renamed files (excluding backup directories).
@@ -562,6 +581,9 @@ while IFS= read -r new_file; do
         fi
     fi
 done <<< "$renamed_files"
+else
+echo "Skipping XMP sidecar creation per user choice"
+fi
 
 # Clean up temporary file.
 rm -f "$temp_mapping"
@@ -569,7 +591,9 @@ rm -f "$temp_mapping"
 echo # New line after progress counter
 
 # Confirm sidecar creation for all supported formats.
+if [[ "$CREATE_XMP" =~ ^([Yy]|[Yy][Ee][Ss])$ ]]; then
 echo "XMP sidecar files created for all supported formats."
+fi
 
 # Display summary.
 echo
@@ -577,7 +601,11 @@ echo "========================================"
 echo "              PROCESSING SUMMARY"
 echo "========================================"
 echo "Files renamed: $total_files"
+if [[ "$CREATE_XMP" =~ ^([Yy]|[Yy][Ee][Ss])$ ]]; then
 echo "XMP sidecar files created: $total_files"
+else
+echo "XMP sidecar files created: 0 (skipped)"
+fi
 echo "Category: $category"
 echo "Event: $event"
 echo "XMP handling mode: $xmp_mode"

@@ -42,6 +42,7 @@ You will be prompted for:
 - **Backup creation**: Create a timestamped backup folder (default: Yes). In interactive mode, a live progress percentage is shown during the backup copy.
 - **Category**: Optional prefix like `Fam`, `Street`, `Art` (default: `Fam` if enabled)
 - **Event**: Short descriptor (1–3 words, no spaces, max 12 chars)
+- **XMP sidecars**: Whether to create XMP sidecar files (default: Yes). Choose No to skip creating sidecars this run.
 
 ### Command Line Mode
 
@@ -57,7 +58,11 @@ For automation or batch processing, you can specify options directly:
 - `-r, --recursive` - Process subdirectories recursively [default: false]
 - `-n, --no-backup` - Skip backup creation [default: backup enabled]
 - `-x, --xmp-mode MODE` - XMP handling: backup, skip, overwrite [default: backup]
+- `-s, --no-sidecar` - Do not create XMP sidecar files (CLI mode)
 - `-h, --help` - Show help message
+
+Note:
+- If `--no-sidecar` is specified, no XMP files are created and `--xmp-mode` is ignored.
 
 **Examples:**
 ```bash
@@ -98,7 +103,7 @@ Notes:
 
 ### XMP Sidecar Handling
 
-The script provides three modes for handling existing XMP sidecar files:
+The script provides an optional XMP sidecar step (interactive prompt, default Yes). When enabled, it uses one of three modes for handling existing XMP sidecar files:
 
 - **`backup`** (default): Moves existing XMP files to the backup directory before creating new ones. This preserves any existing metadata while ensuring the new filename information is added.
 - **`skip`**: Skips creating XMP files for images that already have them. Useful when you want to preserve existing XMP metadata completely.
