@@ -291,6 +291,12 @@ if [[ "$backup" =~ ^([Yy]|[Yy][Ee][Ss])$ ]]; then
     
     if [[ "$recursive" =~ ^([Yy]|[Yy][Ee][Ss])$ ]]; then
         # Backup all files, including subdirectories, preserving structure.
+        # In interactive mode, display a live progress percentage while copying.
+        total_backup_files=$(find . -type f \( -iname "*.RAF" -o -iname "*.CR2" -o -iname "*.NEF" -o -iname "*.ARW" -o -iname "*.ORF" -o -iname "*.RW2" -o -iname "*.PEF" -o -iname "*.DNG" -o -iname "*.JPG" -o -iname "*.JPEG" -o -iname "*.HEIC" -o -iname "*.HEIF" -o -iname "*.PNG" -o -iname "*.TIFF" -o -iname "*.TIF" -o -iname "*.WEBP" \) -not -path "./backup_*" | wc -l)
+        current_backup=0
+        if [[ "$INTERACTIVE_MODE" == "true" ]]; then
+            echo "Starting backup: $total_backup_files files (including subdirectories)"
+        fi
         find . -type f \( -iname "*.RAF" -o -iname "*.CR2" -o -iname "*.NEF" -o -iname "*.ARW" -o -iname "*.ORF" -o -iname "*.RW2" -o -iname "*.PEF" -o -iname "*.DNG" -o -iname "*.JPG" -o -iname "*.JPEG" -o -iname "*.HEIC" -o -iname "*.HEIF" -o -iname "*.PNG" -o -iname "*.TIFF" -o -iname "*.TIF" -o -iname "*.WEBP" \) -not -path "./backup_*" | while read -r file; do
             # Create directory structure in backup
             file_dir=$(dirname "$file")
@@ -300,11 +306,35 @@ if [[ "$backup" =~ ^([Yy]|[Yy][Ee][Ss])$ ]]; then
             else
                 cp "$file" "$backup_dir/"
             fi
+            if [[ "$INTERACTIVE_MODE" == "true" && "$total_backup_files" -gt 0 ]]; then
+                current_backup=$((current_backup + 1))
+                percentage=$((current_backup * 100 / total_backup_files))
+                printf "\rBackup progress: %d/%d (%d%%) - %s" "$current_backup" "$total_backup_files" "$percentage" "$(basename "$file")"
+            fi
         done
+        if [[ "$INTERACTIVE_MODE" == "true" ]]; then
+            echo
+        fi
         echo "Backup created in: $backup_dir (including subdirectories with preserved structure)"
     else
         # Backup current directory only.
-        find . -maxdepth 1 -type f \( -iname "*.RAF" -o -iname "*.CR2" -o -iname "*.NEF" -o -iname "*.ARW" -o -iname "*.ORF" -o -iname "*.RW2" -o -iname "*.PEF" -o -iname "*.DNG" -o -iname "*.JPG" -o -iname "*.JPEG" -o -iname "*.HEIC" -o -iname "*.HEIF" -o -iname "*.PNG" -o -iname "*.TIFF" -o -iname "*.TIF" -o -iname "*.WEBP" \) -exec cp {} "$backup_dir/" \;
+        # In interactive mode, display a live progress percentage while copying.
+        total_backup_files=$(find . -maxdepth 1 -type f \( -iname "*.RAF" -o -iname "*.CR2" -o -iname "*.NEF" -o -iname "*.ARW" -o -iname "*.ORF" -o -iname "*.RW2" -o -iname "*.PEF" -o -iname "*.DNG" -o -iname "*.JPG" -o -iname "*.JPEG" -o -iname "*.HEIC" -o -iname "*.HEIF" -o -iname "*.PNG" -o -iname "*.TIFF" -o -iname "*.TIF" -o -iname "*.WEBP" \) | wc -l)
+        current_backup=0
+        if [[ "$INTERACTIVE_MODE" == "true" ]]; then
+            echo "Starting backup: $total_backup_files files (current directory only)"
+        fi
+        find . -maxdepth 1 -type f \( -iname "*.RAF" -o -iname "*.CR2" -o -iname "*.NEF" -o -iname "*.ARW" -o -iname "*.ORF" -o -iname "*.RW2" -o -iname "*.PEF" -o -iname "*.DNG" -o -iname "*.JPG" -o -iname "*.JPEG" -o -iname "*.HEIC" -o -iname "*.HEIF" -o -iname "*.PNG" -o -iname "*.TIFF" -o -iname "*.TIF" -o -iname "*.WEBP" \) | while read -r file; do
+            cp "$file" "$backup_dir/"
+            if [[ "$INTERACTIVE_MODE" == "true" && "$total_backup_files" -gt 0 ]]; then
+                current_backup=$((current_backup + 1))
+                percentage=$((current_backup * 100 / total_backup_files))
+                printf "\rBackup progress: %d/%d (%d%%) - %s" "$current_backup" "$total_backup_files" "$percentage" "$(basename "$file")"
+            fi
+        done
+        if [[ "$INTERACTIVE_MODE" == "true" ]]; then
+            echo
+        fi
         echo "Backup created in: $backup_dir (current directory only)"
     fi
 else

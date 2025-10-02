@@ -9,6 +9,7 @@ A fast, cross-camera photo renamer powered by ExifTool. It safely renames RAW/JP
 - **Pair-aware**: Keeps RAW/JPEG (e.g., Fujifilm SOOC) pairs aligned by timestamp and extension
 - **XMP sidecars**: Writes original filename into `XMP:Title`
 - **Backups**: Optional full backup with directory structure preserved
+- **Interactive backup progress**: Live percentage shown while copying files (interactive mode)
 - **Recursive mode**: Optionally process subdirectories
 - **Clean output**: All output goes to stdout/stderr - redirect to file if logging desired
 
@@ -38,7 +39,7 @@ Run the script in the directory containing your photos (or at a parent directory
 You will be prompted for:
 
 - **Recursive processing**: Include subdirectories (default: No)
-- **Backup creation**: Create a timestamped backup folder (default: Yes)
+- **Backup creation**: Create a timestamped backup folder (default: Yes). In interactive mode, a live progress percentage is shown during the backup copy.
 - **Category**: Optional prefix like `Fam`, `Street`, `Art` (default: `Fam` if enabled)
 - **Event**: Short descriptor (1–3 words, no spaces, max 12 chars)
 
