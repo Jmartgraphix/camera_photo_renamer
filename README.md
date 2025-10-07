@@ -143,10 +143,55 @@ The script provides an optional XMP sidecar step (interactive prompt, default Ye
 - Files missing `DateTimeOriginal` are renamed using the current scheme but may rely on fallback behavior; sidecars will still note the original filename.
 - If multiple files share identical timestamps without subseconds, the `-c` counter ensures uniqueness but chronological order within the same second may vary by filesystem listing.
 
+## Testing
+
+The project includes a comprehensive test suite using Bats (Bash Automated Testing System).
+
+### Install Bats
+
+**macOS:**
+```bash
+brew install bats-core
+```
+
+**Linux/WSL:**
+```bash
+sudo apt-get install bats
+```
+
+### Run Tests
+
+```bash
+# Quick test run (recommended)
+./run_tests.sh
+
+# Run with verbose output
+./run_tests.sh -v
+
+# Run specific test pattern
+./run_tests.sh -f "XMP"
+
+# Or use bats directly
+bats test/camera_photo_renamer.bats
+bats test/camera_photo_renamer.bats --verbose-run
+bats test/camera_photo_renamer.bats -f "displays help message"
+```
+
+See [test/README.md](test/README.md) for detailed testing documentation.
+
 ## Contributing
 
 Issues and pull requests are welcome. Please keep changes focused and include a brief description of the use case.
 
+**Before submitting:**
+1. Run the test suite: `bats test/camera_photo_renamer.bats`
+2. Add tests for new features
+3. Ensure all tests pass
+
 ## License
 
 MIT — see [LICENSE](https://github.com/Jmartgraphix/camera_photo_renamer/blob/main/LICENSE) for details.
+
+## Related Projects
+
+* [Camera Movie Re-namer](https://github.com/Jmartgraphix/camera_movie_renamer) - Similar tool for movie/video files (MP4/MOV/AVI/MTS/etc.)

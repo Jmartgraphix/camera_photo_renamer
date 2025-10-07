@@ -1,0 +1,50 @@
+name: Test Camera Photo Renamer
+
+on:
+  push:
+    branches: [ main, master, develop ]
+  pull_request:
+    branches: [ main, master, develop ]
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y bats libimage-exiftool-perl
+      
+      - name: Verify ExifTool installation
+        run: |
+          which exiftool
+          exiftool -ver
+      
+      - name: Verify Bats installation
+        run: |
+          which bats
+          bats --version
+      
+      - name: Make script executable
+        run: chmod +x camera_photo_renamer.sh
+      
+      - name: Run tests
+        run: bats test/camera_photo_renamer.bats --verbose-run
+      
+      - name: Test summary
+        if: always()
+        run: |
+          echo "Test run completed"
+          if [ $? -eq 0 ]; then
+            echo "✅ All tests passed"
+          else
+            echo "❌ Some tests failed"
+            exit 1
+          fi
+
+
